@@ -1,6 +1,9 @@
 # # llm_services.py
 # import ollama
-# from config import LLM_MODEL
+# from config import (
+#     LLM_MODEL, PRODUCT_NAME_COLUMN, DESCRIPTION_COLUMN, PRICE_COLUMN, BRAND_COLUMN,
+#     RAM_COLUMN, STORAGE_COLUMN, DISPLAY_SIZE_COLUMN, OS_COLUMN, BATTERY_LIFE_COLUMN, RATING_COLUMN
+# )
 
 # def ollama_instruct_completion(prompt_text, system_prompt_text=None, model_name=LLM_MODEL):
 #     """
@@ -12,7 +15,6 @@
 #     messages.append({'role': 'user', 'content': prompt_text})
     
 #     try:
-#         # print(f"\n[Ollama LLM] Getting completion from {model_name} for prompt: '{prompt_text[:100]}...'")
 #         response = ollama.chat(
 #             model=model_name,
 #             messages=messages
@@ -22,18 +24,46 @@
 #         print(f"Error with Ollama model {model_name} (instruct): {e}")
 #         return "Error: Could not get response from local AI model."
 
-# def ollama_chat_interaction(chat_history_messages, model_name=LLM_MODEL):
+# # def ollama_chat_interaction(chat_history_messages, model_name=LLM_MODEL):
+# #     """
+# #     Gets a chat completion from Ollama, using the provided chat history.
+# #     """
+# #     if not chat_history_messages:
+# #         return "Error: No chat history provided."
+# #     try:
+# #         response = ollama.chat(
+# #             model=model_name,
+# #             messages=chat_history_messages
+# #         )
+# #         return response['message']['content']
+# #     except Exception as e:
+# #         print(f"Error with Ollama model {model_name} (chat): {e}")
+# #         return "Error: Could not get response from local AI model for chat."
+# def ollama_chat_interaction(prompt, chat_history=None, context=None, model_name=LLM_MODEL):
 #     """
-#     Gets a chat completion from Ollama, using the provided chat history.
-#     `chat_history_messages` should be a list of dicts, e.g., [{'role': 'user', 'content': 'Hi'}]
+#     Handles chat interaction using Ollama.
+#     Adds context as a system message and constructs the full conversation history.
 #     """
-#     if not chat_history_messages:
-#         return "Error: No chat history provided."
+#     if not prompt:
+#         return "Error: No user prompt provided."
+
+#     messages = []
+
+#     # Add system context if available
+#     if context:
+#         messages.append({"role": "system", "content": context})
+
+#     # Add previous chat history if provided
+#     if chat_history:
+#         messages.extend(chat_history)
+
+#     # Add current user message
+#     messages.append({"role": "user", "content": prompt})
+
 #     try:
-#         # print(f"\n[Ollama Chat] Getting response from {model_name}. History length: {len(chat_history_messages)}")
 #         response = ollama.chat(
 #             model=model_name,
-#             messages=chat_history_messages
+#             messages=messages
 #         )
 #         return response['message']['content']
 #     except Exception as e:
@@ -43,100 +73,126 @@
 # def parse_query_with_llm(user_query):
 #     """
 #     Uses Ollama LLM to parse the user query for better search intent.
+#     The goal is to create a query that is effective for semantic search,
+#     emphasizing the preservation of the core product category and extracting key features.
+#     CRITICALLY: This function should make the LLM output ONLY the refined query string.
 #     """
-#     # print(f"\n[LLM Query Parser] Parsing query: '{user_query}'")
 #     system_prompt = (
-#         """You must only provide information related to laptops. If the user asks about any product or topic that is not related to laptops, politely decline to answer and encourage the user to search for laptops instead"""
-#         "You are an expert query understanding system. Your task is to rephrase the user's product search query "
-#         "to be more effective for semantic search. Focus on extracting key product types, features, brand names, "
-#         "and any specific requirements. Output only the refined query. For example, if the user says "
-#         "'I need a cheap laptop for coding and school under $700', you might output: "
-#         "'budget laptop for programming and student use under $700'. If the query is already good, "
-#         "you can return it as is or make minor improvements for clarity."
+#         "You are an expert query understanding system. Your task is to refine the user's product search query "
+#         "for effective semantic search. Preserve and emphasize any clear product category (e.g., 'laptop', 'washing machine'). "
+#         "Extract key features, brand names, colors, sizes, and requirements. "
+#         "IMPORTANT: Output ONLY the refined query string itself, with no additional explanations, greetings, or conversational text. "
+#         "For example, if user says 'I need a cheap Dell laptop for coding with 16GB RAM under $700', your entire output must be: 'Dell budget coding laptop 16GB RAM under $700'. "
+#         "If user says 'macbook air m2', your entire output must be: 'Apple MacBook Air M2'. "
+#         "If user says 'red cotton t-shirt large', your entire output must be: 'large red cotton t-shirt'. "
+#         "If user says 'clothes', your entire output must be: 'clothing'. "
+#         "If the query is already very specific and clear, you can return it with minimal changes or as is, but still ONLY the query string."
 #     )
 #     refined_query = ollama_instruct_completion(user_query, system_prompt_text=system_prompt)
     
-#     if "Error:" in refined_query: # Check if LLM call failed
+#     if "Error:" in refined_query: 
 #         print(f"  - Query parsing failed, using original query: {user_query}")
-#         return user_query # Fallback to original query
+#         return user_query
+    
+#     # Attempt to clean up potential minor LLM verbosity if it still adds quotes or prefixes.
+#     # This is a heuristic and might need adjustment based on observed LLM behavior.
+#     refined_query = refined_query.strip()
+#     if refined_query.startswith('"') and refined_query.endswith('"'):
+#         refined_query = refined_query[1:-1]
+#     if refined_query.lower().startswith("refined query:") :
+#         refined_query = refined_query[len("refined query:"):].strip()
+#     if refined_query.lower().startswith("output:") :
+#         refined_query = refined_query[len("output:"):].strip()
         
-#     # print(f"  - Original Query: {user_query}")
-#     # print(f"  - Refined Query by LLM: {refined_query}")
 #     return refined_query
 
 # def generate_enhanced_description(product_data_dict):
 #     """
-#     Uses Ollama LLM to generate an enhanced product description.
-#     `product_data_dict` is a dictionary of the selected product.
+#     Uses Ollama LLM to generate an enhanced product description,
+#     leveraging more detailed product attributes.
 #     """
-#     from config import PRODUCT_NAME_COLUMN, DESCRIPTION_COLUMN # Import here to avoid circular dependency if this file was imported elsewhere
-    
 #     product_name = product_data_dict.get(PRODUCT_NAME_COLUMN, "This product")
-#     original_desc = product_data_dict.get(DESCRIPTION_COLUMN, "No detailed description provided.")
-#     # You can add more fields from product_data_dict to the prompt if they exist in your CSV and config
-#     # price = product_data_dict.get(config.PRICE_COLUMN, None)
+#     brand = product_data_dict.get(BRAND_COLUMN, "")
+#     description = product_data_dict.get(DESCRIPTION_COLUMN, "No detailed description provided.")
+#     price = product_data_dict.get(PRICE_COLUMN, "")
+#     ram = product_data_dict.get(RAM_COLUMN, "")
+#     storage = product_data_dict.get(STORAGE_COLUMN, "")
+#     display_size = product_data_dict.get(DISPLAY_SIZE_COLUMN, "")
+#     os = product_data_dict.get(OS_COLUMN, "")
+#     battery = product_data_dict.get(BATTERY_LIFE_COLUMN, "")
+#     rating = product_data_dict.get(RATING_COLUMN, "")
+
+#     details_parts = [f"Product Name: {product_name}"]
+#     if brand: details_parts.append(f"Brand: {brand}")
+#     if price: details_parts.append(f"Price: {price}") 
+#     if ram: details_parts.append(f"RAM: {ram}")
+#     if storage: details_parts.append(f"Storage: {storage}")
+#     if display_size: details_parts.append(f"Display: {display_size}")
+#     if os: details_parts.append(f"Operating System: {os}")
+#     if battery: details_parts.append(f"Battery Life: {battery}")
+#     if rating and rating.lower() not in ['not found', 'nan', '']: details_parts.append(f"Customer Rating: {rating} out of 5") 
+#     if description and description.lower() not in ['not found', 'nan', '']: details_parts.append(f"Original Description: {description}")
+
+#     product_details_for_prompt = "\n".join(details_parts)
 
 #     prompt_text = (
-#          """You must only provide information related to laptops. If the user asks about any product or topic that is not related to laptops, politely decline to answer and encourage the user to search for laptops instead"""
-#         f"Generate a compelling and engaging product description for the following item. "
-#         f"Make it suitable for an e-commerce website. Highlight key benefits and unique selling points. "
-#         f"Use enthusiastic and persuasive language. Keep it to 1-2 concise paragraphs.\n\n"
-#         f"Product Name: {product_name}\n"
-#         f"Existing Description/Details: {original_desc}\n"
-#         # + (f"Price: {price}\n" if price else "")
+#         f"Generate a compelling and highly engaging product description for the following laptop. "
+#         f"Make it suitable for an e-commerce website. Highlight its key benefits, unique selling points, "
+#         f"and target audience based on the provided details. Use enthusiastic and persuasive language. "
+#         f"Structure it into 2-3 concise paragraphs. Do not just list the features; weave them into a narrative.\n\n"
+#         f"Laptop Details:\n{product_details_for_prompt}"
 #     )
     
-#     system_prompt_text = "You are a highly skilled marketing copywriter specializing in e-commerce product descriptions. Your goal is to maximize customer interest and conversion."
+#     system_prompt_text = "You are a highly skilled marketing copywriter specializing in e-commerce product descriptions for laptops. Your goal is to maximize customer interest and conversion by creating vivid and appealing narratives."
 #     enhanced_desc = ollama_instruct_completion(prompt_text, system_prompt_text=system_prompt_text)
     
-#     # print(f"  - Generated Enhanced Description for {product_name}:\n{enhanced_desc}")
 #     return enhanced_desc
 
 # if __name__ == '__main__':
-#     # For testing llm_services.py independently
-#     # Requires Ollama server to be running with LLM_MODEL
 #     print(f"Testing LLM services with model: {LLM_MODEL}")
 
-#     # Test query parsing
-#     test_query = "Tell me about good cheap laptops for students for programming"
-#     print(f"\nTesting query parsing for: '{test_query}'")
-#     parsed = parse_query_with_llm(test_query)
-#     print(f"Parsed query: {parsed}")
+#     queries_to_test = [
+#         "Dell XPS 15 with 32GB RAM and 1TB SSD for video editing",
+#         "i want to buy clothes",
+#         "fridge"
+#     ]
+#     for test_query in queries_to_test:
+#         print(f"\nTesting query parsing for: '{test_query}'")
+#         parsed = parse_query_with_llm(test_query)
+#         print(f"  Original: '{test_query}'\n  Parsed (should be only query string): '{parsed}'")
 
-#     # Test chat interaction
-#     print("\nTesting chat interaction:")
-#     history = [{"role": "user", "content": "Hello, what is Ollama?"}]
-#     response = ollama_chat_interaction(history)
-#     print(f"Response to 'Hello, what is Ollama?': {response}")
-    
-#     if "Error:" not in response:
-#         history.append({"role": "assistant", "content": response})
-#         history.append({"role": "user", "content": "How can I use it with Python?"})
-#         response2 = ollama_chat_interaction(history)
-#         print(f"Response to 'How can I use it with Python?': {response2}")
-
-#     # Test description generation
 #     print("\nTesting enhanced description generation:")
 #     sample_product = {
-#         'product_id': 'T123',
-#         'product_name': 'UltraBook Pro X1',
-#         'description': '14 inch display, 8GB RAM, 256GB SSD. Good for work.'
-#         # 'price': '699.99' # Example if price column is used
+#         PRODUCT_NAME_COLUMN: 'Dell XPS 15 9530',
+#         BRAND_COLUMN: 'Dell',
+#         DESCRIPTION_COLUMN: 'A premium laptop for creators and professionals with stunning visuals.',
+#         PRICE_COLUMN: '₹249990',
+#         RAM_COLUMN: '32GB DDR5',
+#         STORAGE_COLUMN: '1TB NVMe SSD',
+#         DISPLAY_SIZE_COLUMN: '15.6-inch 3.5K OLED Touch',
+#         OS_COLUMN: 'Windows 11 Pro',
+#         BATTERY_LIFE_COLUMN: 'Up to 10 hours',
+#         RATING_COLUMN: '4.7'
 #     }
 #     enhanced = generate_enhanced_description(sample_product)
-#     print(f"Enhanced description for {sample_product['product_name']}:\n{enhanced}")
+#     print(f"Enhanced description for {sample_product[PRODUCT_NAME_COLUMN]}:\n{enhanced}")
 
 
-# ====================================================================================================
+
+# Chatgpt code
 
 
 # llm_services.py
+import json
 import ollama
-from config import LLM_MODEL
+from config import (
+    LLM_MODEL, PRODUCT_NAME_COLUMN, DESCRIPTION_COLUMN, PRICE_COLUMN, BRAND_COLUMN,
+    RAM_COLUMN, STORAGE_COLUMN, DISPLAY_SIZE_COLUMN, OS_COLUMN, BATTERY_LIFE_COLUMN, RATING_COLUMN
+)
 
 def ollama_instruct_completion(prompt_text, system_prompt_text=None, model_name=LLM_MODEL):
     """
-    Gets a completion from an Ollama instruction-tuned model.
+    Gets a completion from an Ollama model, optionally using a system prompt.
     """
     messages = []
     if system_prompt_text:
@@ -144,7 +200,6 @@ def ollama_instruct_completion(prompt_text, system_prompt_text=None, model_name=
     messages.append({'role': 'user', 'content': prompt_text})
     
     try:
-        # print(f"\n[Ollama LLM] Getting completion from {model_name} for prompt: '{prompt_text[:100]}...'")
         response = ollama.chat(
             model=model_name,
             messages=messages
@@ -154,125 +209,152 @@ def ollama_instruct_completion(prompt_text, system_prompt_text=None, model_name=
         print(f"Error with Ollama model {model_name} (instruct): {e}")
         return "Error: Could not get response from local AI model."
 
-def ollama_chat_interaction(chat_history_messages, model_name=LLM_MODEL):
+def parse_json_response(response_str):
     """
-    Gets a chat completion from Ollama, using the provided chat history.
-    `chat_history_messages` should be a list of dicts, e.g., [{'role': 'user', 'content': 'Hi'}]
+    Tries to parse a JSON object from the LLM's response string.
     """
-    if not chat_history_messages:
-        return "Error: No chat history provided."
     try:
-        # print(f"\n[Ollama Chat] Getting response from {model_name}. History length: {len(chat_history_messages)}")
+        response_str = response_str.strip()
+        json_start = response_str.find("{")
+        json_end = response_str.rfind("}") + 1
+        if json_start == -1 or json_end == -1:
+            return None
+        return json.loads(response_str[json_start:json_end])
+    except json.JSONDecodeError as e:
+        print(f"  - JSON parsing error: {e}")
+        return None
+
+def classify_query_type(user_query):
+    """
+    Returns a classification of the query type: informational, transactional, or navigational.
+    """
+    system_prompt = (
+        "Classify the following e-commerce search query as one of: 'informational', 'transactional', or 'navigational'. "
+        "Output only the classification word."
+    )
+    classification = ollama_instruct_completion(user_query, system_prompt_text=system_prompt)
+    return classification.strip().lower()
+
+def parse_query_with_llm(user_query):
+    """
+    Uses Ollama LLM to parse the user query into a structured format.
+    Extracts category, brand, features, and constraints to guide semantic search and filtering.
+    """
+    system_prompt = (
+        "You are a query parsing assistant for an e-commerce search system. "
+        "Your goal is to extract structured information from the user's query. "
+        "Output ONLY in JSON format with the following keys if present: "
+        "category, brand, usage, RAM, storage, display_size, OS, battery_life, price_constraint, color, size. "
+        "Avoid any explanation or extra text. Only a JSON object."
+    )
+    
+    llm_response = ollama_instruct_completion(user_query, system_prompt_text=system_prompt)
+    
+    parsed_result = parse_json_response(llm_response)
+    if parsed_result is None:
+        print(f"  - Failed to parse structured query, falling back to plain query string: {user_query}")
+        return {"raw_query": user_query}
+    
+    return parsed_result
+
+def ollama_chat_interaction(prompt, chat_history=None, context=None, model_name=LLM_MODEL):
+    """
+    Handles chat interaction using Ollama.
+    Adds context as a system message and constructs the full conversation history.
+    """
+    if not prompt:
+        return "Error: No user prompt provided."
+
+    messages = []
+
+    # Add system context if available
+    if context:
+        messages.append({"role": "system", "content": context})
+
+    # Add previous chat history if provided
+    if chat_history:
+        messages.extend(chat_history)
+
+    # Add current user message
+    messages.append({"role": "user", "content": prompt})
+
+    try:
         response = ollama.chat(
             model=model_name,
-            messages=chat_history_messages
+            messages=messages
         )
         return response['message']['content']
     except Exception as e:
         print(f"Error with Ollama model {model_name} (chat): {e}")
         return "Error: Could not get response from local AI model for chat."
 
-def parse_query_with_llm(user_query):
-    """
-    Uses Ollama LLM to parse the user query for better search intent.
-    The goal is to create a query that is effective for semantic search,
-    emphasizing the preservation of the core product category.
-    """
-    # print(f"\n[LLM Query Parser] Parsing query: '{user_query}'")
-    system_prompt = (
-        "You are an expert query understanding system. Your primary task is to refine the user's product search query "
-        "for effective semantic search. Crucially, if the user specifies a clear product category (e.g., 'laptop', 'washing machine', 'smartphone', 't-shirt'), "
-        "ensure this exact product category is preserved and emphasized in the refined query. "
-        "Also extract other key features, brand names, colors, sizes, and requirements. Output only the refined query. "
-        "For example, if user says 'washing machine front load 8kg', output 'front load 8kg washing machine'. "
-        "If user says 'tell me about budget laptops for students', output 'budget student laptops'. "
-        "If user says 'red cotton t-shirt large', output 'large red cotton t-shirt'. "
-        "If the query is already very specific and clear, you can return it with minimal changes or as is."
-    )
-    refined_query = ollama_instruct_completion(user_query, system_prompt_text=system_prompt)
-    
-    if "Error:" in refined_query: # Check if LLM call failed
-        print(f"  - Query parsing failed, using original query: {user_query}")
-        return user_query # Fallback to original query
-        
-    # print(f"  - Original Query: {user_query}")
-    # print(f"  - Refined Query by LLM: {refined_query}")
-    return refined_query
-
 def generate_enhanced_description(product_data_dict):
     """
-    Uses Ollama LLM to generate an enhanced product description.
-    `product_data_dict` is a dictionary of the selected product.
+    Uses Ollama LLM to generate an enhanced product description,
+    leveraging more detailed product attributes.
     """
-    # Importing config variables locally to avoid potential circular import issues
-    # if this file were to be imported by config or a file config imports.
-    from config import PRODUCT_NAME_COLUMN, DESCRIPTION_COLUMN 
-    
     product_name = product_data_dict.get(PRODUCT_NAME_COLUMN, "This product")
-    original_desc = product_data_dict.get(DESCRIPTION_COLUMN, "No detailed description provided.")
-    # Example: You could add other product attributes from product_data_dict to the prompt
-    # price = product_data_dict.get(config.PRICE_COLUMN, None) # If you had PRICE_COLUMN in config
+    brand = product_data_dict.get(BRAND_COLUMN, "")
+    description = product_data_dict.get(DESCRIPTION_COLUMN, "No detailed description provided.")
+    price = product_data_dict.get(PRICE_COLUMN, "")
+    ram = product_data_dict.get(RAM_COLUMN, "")
+    storage = product_data_dict.get(STORAGE_COLUMN, "")
+    display_size = product_data_dict.get(DISPLAY_SIZE_COLUMN, "")
+    os = product_data_dict.get(OS_COLUMN, "")
+    battery = product_data_dict.get(BATTERY_LIFE_COLUMN, "")
+    rating = product_data_dict.get(RATING_COLUMN, "")
+
+    details_parts = [f"Product Name: {product_name}"]
+    if brand: details_parts.append(f"Brand: {brand}")
+    if price: details_parts.append(f"Price: {price}") 
+    if ram: details_parts.append(f"RAM: {ram}")
+    if storage: details_parts.append(f"Storage: {storage}")
+    if display_size: details_parts.append(f"Display: {display_size}")
+    if os: details_parts.append(f"Operating System: {os}")
+    if battery: details_parts.append(f"Battery Life: {battery}")
+    if rating and rating.lower() not in ['not found', 'nan', '']: details_parts.append(f"Customer Rating: {rating} out of 5") 
+    if description and description.lower() not in ['not found', 'nan', '']: details_parts.append(f"Original Description: {description}")
+
+    product_details_for_prompt = "\n".join(details_parts)
 
     prompt_text = (
-        f"Generate a compelling and engaging product description for the following item. "
-        f"Make it suitable for an e-commerce website. Highlight key benefits and unique selling points. "
-        f"Use enthusiastic and persuasive language. Keep it to 1-2 concise paragraphs.\n\n"
-        f"Product Name: {product_name}\n"
-        f"Existing Description/Details: {original_desc}\n"
-        # + (f"Price: {price}\n" if price else "") # Example if using price
+        f"Generate a compelling and highly engaging product description for the following laptop. "
+        f"Make it suitable for an e-commerce website. Highlight its key benefits, unique selling points, "
+        f"and target audience based on the provided details. Use enthusiastic and persuasive language. "
+        f"Structure it into 2-3 concise paragraphs. Do not just list the features; weave them into a narrative.\n\n"
+        f"Laptop Details:\n{product_details_for_prompt}"
     )
     
-    system_prompt_text = "You are a highly skilled marketing copywriter specializing in e-commerce product descriptions. Your goal is to maximize customer interest and conversion."
+    system_prompt_text = "You are a highly skilled marketing copywriter specializing in e-commerce product descriptions for laptops. Your goal is to maximize customer interest and conversion by creating vivid and appealing narratives."
     enhanced_desc = ollama_instruct_completion(prompt_text, system_prompt_text=system_prompt_text)
     
-    # print(f"  - Generated Enhanced Description for {product_name}:\n{enhanced_desc}")
     return enhanced_desc
 
 if __name__ == '__main__':
-    # For testing llm_services.py independently
-    # Requires Ollama server to be running with LLM_MODEL
     print(f"Testing LLM services with model: {LLM_MODEL}")
 
-    # Test query parsing
     queries_to_test = [
-        "Tell me about good cheap laptops for students for programming",
-        "washing machine",
-        "front load 8kg washing machine with dryer",
-        "red cotton t-shirt large"
+        "Dell XPS 15 with 32GB RAM and 1TB SSD for video editing",
+        "i want to buy clothes",
+        "fridge"
     ]
     for test_query in queries_to_test:
         print(f"\nTesting query parsing for: '{test_query}'")
         parsed = parse_query_with_llm(test_query)
-        print(f"  Original: '{test_query}'\n  Parsed:   '{parsed}'")
+        print(f"  Original: '{test_query}'\n  Parsed (structured JSON): {parsed}")
 
-
-    # Test chat interaction
-    print("\nTesting chat interaction:")
-    history = [{"role": "user", "content": "Hello, what is Ollama?"}]
-    response = ollama_chat_interaction(history)
-    print(f"Response to 'Hello, what is Ollama?': {response}")
-    
-    if "Error:" not in response:
-        history.append({"role": "assistant", "content": response})
-        history.append({"role": "user", "content": "How can I use it with Python?"})
-        response2 = ollama_chat_interaction(history)
-        print(f"Response to 'How can I use it with Python?': {response2}")
-
-    # Test description generation
     print("\nTesting enhanced description generation:")
     sample_product = {
-        # Ensure these keys match what's defined in your config.py for column names
-        'product_name': 'EcoWash Deluxe 8000', # Assuming PRODUCT_NAME_COLUMN is 'product_name'
-        'description': 'Front-loading washing machine, 8kg capacity, 15 wash programs, energy efficient A+++.' # Assuming DESCRIPTION_COLUMN is 'description'
-        # 'price': '499.99' # Example if price column is used
+        PRODUCT_NAME_COLUMN: 'Dell XPS 15 9530',
+        BRAND_COLUMN: 'Dell',
+        DESCRIPTION_COLUMN: 'A premium laptop for creators and professionals with stunning visuals.',
+        PRICE_COLUMN: '₹249990',
+        RAM_COLUMN: '32GB DDR5',
+        STORAGE_COLUMN: '1TB NVMe SSD',
+        DISPLAY_SIZE_COLUMN: '15.6-inch 3.5K OLED Touch',
+        OS_COLUMN: 'Windows 11 Pro',
+        BATTERY_LIFE_COLUMN: 'Up to 10 hours',
+        RATING_COLUMN: '4.7'
     }
-    # If your config.py uses different keys, adjust sample_product accordingly:
-    # from config import PRODUCT_NAME_COLUMN, DESCRIPTION_COLUMN
-    # sample_product = {
-    #     PRODUCT_NAME_COLUMN: 'EcoWash Deluxe 8000',
-    #     DESCRIPTION_COLUMN: 'Front-loading washing machine, 8kg capacity, 15 wash programs, energy efficient A+++.'
-    # }
-
     enhanced = generate_enhanced_description(sample_product)
-    print(f"Enhanced description for {sample_product.get(PRODUCT_NAME_COLUMN, 'N/A')}:\n{enhanced}")
-
+    print(f"Enhanced description for {sample_product[PRODUCT_NAME_COLUMN]}:\n{enhanced}")
