@@ -5,8 +5,7 @@
 # CSV_FILE_PATH = 'scraped_products.csv'
 CSV_FILE_PATH = '/Users/shubhamphade/Documents/VS_Code/Laptop_Final2/product_recommendation_app/scraped_products.csv'
 
-# --- CSV Column Names ---
-# IMPORTANT: Ensure these string values exactly match the column headers in your CSV file.
+
 
 # Assuming 'Product URL' column contains unique identifiers for each product
 PRODUCT_ID_COLUMN = 'Product URL=ROWS(A:A)' # Changed from PRODUCT_URL and assuming actual column name
