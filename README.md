@@ -136,9 +136,9 @@ This will open the app in your browser 🎉
 
 ## 📸 Screenshots / Demo
 
-![Screenshot 2025-05-11 at 6 42 42 PM](https://github.com/user-attachments/assets/ee083ded-ae4a-4f50-96ce-8d196edba5a9)
-![Screenshot 2025-05-11 at 6 40 17 PM](https://github.com/user-attachments/assets/6e8e4b27-a89a-49c4-99f0-4c3645493174)
-![Screenshot 2025-05-11 at 6 41 43 PM](https://github.com/user-attachments/assets/f94488af-eb0e-45a8-8eeb-22f2aa32076d)
+<img width="1479" alt="Screenshot 2025-05-12 at 4 26 48 PM" src="https://github.com/user-attachments/assets/fc6bcfac-bbe1-4e36-88bb-129c06ce6db0" />
+<img width="1479" alt="Screenshot 2025-05-12 at 4 30 13 PM" src="https://github.com/user-attachments/assets/cd0fad3c-86cd-4206-8784-ff0414ad6275" />
+<img width="1479" alt="Screenshot 2025-05-12 at 4 29 27 PM" src="https://github.com/user-attachments/assets/3e079cc5-8ae3-494c-b167-ef37eedf04de" />
 
 
 
